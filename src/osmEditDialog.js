@@ -27,6 +27,7 @@ const Gtk = imports.gi.Gtk;
 const Lang = imports.lang;
 
 const Application = imports.application;
+const Maps = imports.gi.GnomeMaps;
 const OSMConnection = imports.osmConnection;
 const OSMUtils = imports.osmUtils;
 
@@ -88,11 +89,24 @@ const OSMEditDialog = new Lang.Class({
                         'editorGrid',
                         'commentTextView',
                         'addFieldPopoverGrid',
-                        'addFieldButton'],
+                        'addFieldButton',
+                        'typeLabel',
+                        'typeButton',
+                        'typeValueLabel',
+                        'headerBar'],
 
     _init: function(params) {
         this._place = params.place;
         delete params.place;
+
+        this._addLocation = params.addLocation;
+        delete params.addLocation;
+
+        this._latitude = params.latitude;
+        delete params.latitude;
+
+        this._longitude = params.longitude;
+        delete params.longitude;
 
         /* This is a construct-only property and cannot be set by GtkBuilder */
         params.use_header_bar = true;
@@ -108,14 +122,36 @@ const OSMEditDialog = new Lang.Class({
             this._cancellable.cancel();
         }).bind(this));
 
+        if (this._addLocation) {
+            this._headerBar.title = _("Add Location");
+            this._typeLabel.visible = true;
+            this._typeButton.visible = true;
+        }
+
         this._isEditing = false;
         this._nextButton.connect('clicked', this._onNextClicked.bind(this));
         this._cancelButton.connect('clicked', this._onCancelClicked.bind(this));
         this._backButton.connect('clicked', this._onBackClicked.bind(this));
+        this._typeButton.connect('clicked', this._onTypeClicked.bind(this));
 
-        Application.osmEdit.fetchObject(this._place,
-                                        this._onObjectFetched.bind(this),
-                                        this._cancellable);
+        if (this._addLocation) {
+            this._headerBar.title = _("Add Location");
+            this._typeLabel.visible = true;
+            this._typeButton.visible = true;
+            /* the OSMObject ID, version, and changeset ID is unknown for now */
+            let newNode =
+                Maps.OSMNode.new(0, 0, 0, this._latitude, this._longitude);
+            /* set a placeholder name tag to always get a name entry for new
+               locations */
+            newNode.set_tag('name', '');
+            this._loadOSMData(newNode);
+            this._isEditing = true;
+        } else {
+            this._osmType = this._place.osmType;
+            Application.osmEdit.fetchObject(this._place,
+                                            this._onObjectFetched.bind(this),
+                                            this._cancellable);
+        }
     },
 
     _onNextClicked: function() {
@@ -130,9 +166,13 @@ const OSMEditDialog = new Lang.Class({
             // upload data to OSM
             let comment = this._commentTextView.buffer.text;
             Application.osmEdit.uploadObject(this._osmObject,
-                                             this._place.osmType, comment,
+                                             this._osmType, comment,
                                              this._onObjectUploaded.bind(this));
         }
+    },
+
+    _onTypeClicked: function() {
+        this._stack.visible_child_name = 'select-type';
     },
 
     _switchToUpload: function() {
@@ -196,7 +236,7 @@ const OSMEditDialog = new Lang.Class({
 
     /* GtkContainer.child_get_property doesn't seem to be usable from GJS */
     _getRowOfDeleteButton: function(button) {
-        for (let row = 0;; row++) {
+        for (let row = 1;; row++) {
             let label = this._editorGrid.get_child_at(0, row);
             let deleteButton = this._editorGrid.get_child_at(2, row);
 
@@ -369,13 +409,12 @@ const OSMEditDialog = new Lang.Class({
         }
     },
 
-    _loadOSMData: function(osmObject, osmType) {
+    _loadOSMData: function(osmObject) {
         this._osmObject = osmObject;
-        this._osmType = osmType;
 
         /* keeps track of the current insertion row in the grid for editing
            widgets */
-        this._currentRow = 0;
+        this._currentRow = 1;
 
         /* create edit widgets */
         for (let i = 0; i < OSM_FIELDS.length; i++) {
