@@ -30,6 +30,7 @@ const Application = imports.application;
 const ExportViewDialog = imports.exportViewDialog;
 const Lang = imports.lang;
 const Location = imports.location;
+const OSMEdit = imports.osmEdit;
 const Utils = imports.utils;
 
 const ContextMenu = new Lang.Class({
@@ -38,7 +39,8 @@ const ContextMenu = new Lang.Class({
     Template: 'resource:///org/gnome/Maps/ui/context-menu.ui',
     InternalChildren: [ 'whatsHereItem',
                         'geoURIItem',
-                        'exportItem' ],
+                        'exportItem',
+                        'addOSMLocationItem' ],
 
     _init: function(params) {
         this._mapView = params.mapView;
@@ -55,6 +57,8 @@ const ContextMenu = new Lang.Class({
                                  this._onGeoURIActivated.bind(this));
         this._exportItem.connect('activate',
                                  this._onExportActivated.bind(this));
+        this._addOSMLocationItem.connect('activate',
+                                         this._onAddOSMLocationActivated.bind(this));
     },
 
     _onButtonReleaseEvent: function(actor, event) {
@@ -90,6 +94,22 @@ const ContextMenu = new Lang.Class({
         let uri = location.to_uri(Geocode.LocationURIScheme.GEO);
 
         clipboard.set_text(uri, uri.length);
+    },
+
+    _onAddOSMLocationActivated: function() {
+        let osmEdit = Application.osmEdit;
+        /* if the user is not alread signed in, show the account dialog */
+        if (!osmEdit.isSignedIn) {
+            let response = osmEdit.showAccountDialog(this.get_toplevel(), true);
+            if (!response === OSMAccountDialog.Response.SIGNED_IN)
+                return;
+        }
+
+        let response =
+            osmEdit.showEditNewDialog(this.get_toplevel(),
+                                      this._latitude, this._longitude);
+        /* TODO: should we create a location in the location store, and maybe
+           show a place marker (on success)? */
     },
 
     _activateExport: function() {

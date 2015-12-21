@@ -54,6 +54,18 @@ const OSMEdit = new Lang.Class({
         return response;
     },
 
+    showEditNewDialog: function(parentWindow, latitude, longitude) {
+        let dialog = new OSMEditDialog.OSMEditDialog({
+            transient_for: parentWindow,
+            addLocation: true,
+            latitude: latitude,
+            longitude: longitude
+        });
+        let response = dialog.run();
+        dialog.destroy();
+        return response;
+    },
+
     showAccountDialog: function(parentWindow, closeOnSignIn) {
         let dialog = new OSMAccountDialog.OSMAccountDialog({
             transient_for: parentWindow,
